@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Activity, List, AlertTriangle, Trash2, RotateCcw, Volume2, VolumeX, SkipForward, Power, GripVertical, XCircle, Skull, AlertOctagon, Ban } from 'lucide-react';
+import { Terminal, Activity, List, AlertTriangle, Trash2, RotateCcw, Volume2, VolumeX, SkipForward, Power, GripVertical, XCircle, Skull, AlertOctagon, Clock } from 'lucide-react';
 
 // --- 配置常量 ---
 const HEALTH_CARDS = [
@@ -45,18 +45,19 @@ const HEALTH_CARDS = [
   }
 ];
 
-// 四象限标签配置 (Eisenhower Matrix)
+// 四象限标签配置
 const TAGS = {
-  Q1: { code: 'CRIT', label: 'Critical (Do Now)', color: 'text-red-500 border-red-900 bg-red-900/10' }, // 重要紧急
-  Q2: { code: 'PLAN', label: 'Plan (Schedule)', color: 'text-green-500 border-green-800 bg-green-900/10' }, // 重要不急 (默认)
-  Q3: { code: 'INT', label: 'Interrupt (Delegate)', color: 'text-yellow-500 border-yellow-900 bg-yellow-900/10' }, // 不重但急
-  Q4: { code: 'TRIV', label: 'Trivial (Later)', color: 'text-slate-500 border-slate-800 bg-slate-900/10' }, // 不重不急
+  Q1: { code: 'CRIT', label: 'Critical (Do Now)', color: 'text-red-500 border-red-900 bg-red-900/10' },
+  Q2: { code: 'PLAN', label: 'Plan (Schedule)', color: 'text-green-500 border-green-800 bg-green-900/10' },
+  Q3: { code: 'INT', label: 'Interrupt (Delegate)', color: 'text-yellow-500 border-yellow-900 bg-yellow-900/10' },
+  Q4: { code: 'TRIV', label: 'Trivial (Later)', color: 'text-slate-500 border-slate-800 bg-slate-900/10' },
 };
 
+// 更新后的时间预设
 const FOCUS_TIME_OPTIONS = [
   { label: "25M", value: 25 * 60 },
+  { label: "30M", value: 30 * 60 },
   { label: "45M", value: 45 * 60 },
-  { label: "60M", value: 60 * 60 },
 ];
 
 const THEME = {
@@ -67,7 +68,7 @@ const THEME = {
   input: "bg-black border border-green-800 text-green-500 font-mono focus:border-green-500 focus:outline-none placeholder-green-900",
 };
 
-// --- 音效引擎 (Web Audio API) ---
+// --- 音效引擎 ---
 const playSound = (type = 'beep') => {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -97,7 +98,6 @@ const playSound = (type = 'beep') => {
       osc.start();
       osc.stop(ctx.currentTime + 0.3);
     } else if (type === 'delete') {
-      // 删除音效：下行噪音
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(150, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.2);
@@ -106,7 +106,6 @@ const playSound = (type = 'beep') => {
       osc.start();
       osc.stop(ctx.currentTime + 0.2);
     } else if (type === 'arm') {
-      // 预备删除音效：短促警告
       osc.type = 'square';
       osc.frequency.setValueAtTime(400, ctx.currentTime);
       gain.gain.setValueAtTime(0.05, ctx.currentTime);
@@ -135,14 +134,11 @@ export default function SpineGuardCLI() {
   const [newTaskTag, setNewTaskTag] = useState('Q2');
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // 删除确认状态：存储正在等待确认删除的任务ID
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // 拖拽相关 Ref
   const dragItem = useRef();
   const dragOverItem = useRef();
 
-  // 计时器状态
   const [timerDuration, setTimerDuration] = useState(45 * 60);
   const [timeLeft, setTimeLeft] = useState(45 * 60);
   const [isRunning, setIsRunning] = useState(false);
@@ -176,7 +172,6 @@ export default function SpineGuardCLI() {
     return () => clearInterval(interval);
   }, []);
 
-  // 点击空白处取消删除确认状态
   useEffect(() => {
     const handleClickOutside = () => setDeleteConfirmId(null);
     window.addEventListener('click', handleClickOutside);
@@ -239,10 +234,8 @@ export default function SpineGuardCLI() {
   };
 
   const handleDeleteClick = (taskId, e) => {
-    e.stopPropagation(); // 阻止事件冒泡
-
+    e.stopPropagation();
     if (deleteConfirmId === taskId) {
-      // 第二次点击：执行删除
       setTasks(prev => prev.filter(t => t.id !== taskId));
       if (activeTaskId === taskId) {
         setActiveTaskId(null);
@@ -252,7 +245,6 @@ export default function SpineGuardCLI() {
       setDeleteConfirmId(null);
       if (soundEnabled) playSound('delete');
     } else {
-      // 第一次点击：激活确认状态
       setDeleteConfirmId(taskId);
       if (soundEnabled) playSound('arm');
     }
@@ -278,7 +270,6 @@ export default function SpineGuardCLI() {
     if (soundEnabled) playSound('start');
   };
 
-  // --- 拖拽排序逻辑 ---
   const handleSort = () => {
     let _tasks = [...tasks];
     const draggedItemContent = _tasks.splice(dragItem.current, 1)[0];
@@ -291,7 +282,6 @@ export default function SpineGuardCLI() {
   const handleDragStart = (e, index) => {
     dragItem.current = index;
     e.dataTransfer.effectAllowed = "move";
-    // 可以在这里设置拖拽时的幻影图像，如果需要更精致的效果
   };
 
   const handleDragEnter = (e, index) => {
@@ -416,8 +406,8 @@ export default function SpineGuardCLI() {
       <header className={`border-b ${THEME.border} p-3 flex justify-between items-center bg-black sticky top-0 z-10`}>
         <div className="flex items-center gap-3">
           <Terminal className="w-5 h-5" />
-          <span className="font-bold tracking-wider hidden sm:inline">SPINE_GUARD_V3.4</span>
-          <span className="font-bold tracking-wider sm:hidden">SG_V3.4</span>
+          <span className="font-bold tracking-wider hidden sm:inline">SPINE_GUARD_V3.5</span>
+          <span className="font-bold tracking-wider sm:hidden">SG_V3.5</span>
           <span className="animate-pulse">{cursorVisible ? '█' : ' '}</span>
         </div>
         <div className="flex items-center gap-4">
@@ -513,7 +503,6 @@ export default function SpineGuardCLI() {
                       onDragEnd={handleDragEnd}
                       onDragOver={(e) => e.preventDefault()}
                     >
-                      {/* 关键修改：只让这个把手可以拖动！ */}
                       <div
                         className="col-span-1 flex justify-center cursor-grab active:cursor-grabbing text-green-900 hover:text-green-500"
                         draggable
@@ -522,22 +511,18 @@ export default function SpineGuardCLI() {
                         <GripVertical className="w-4 h-4" />
                       </div>
 
-                      {/* Tag Badge */}
                       <div className="col-span-2 flex justify-center">
                         <span className={`text-[10px] px-1.5 py-0.5 border ${TAGS[task.tag || 'Q2'].color} font-bold rounded-sm w-12 text-center`}>
                           {TAGS[task.tag || 'Q2'].code}
                         </span>
                       </div>
 
-                      {/* Task Title */}
                       <div className="col-span-7 sm:col-span-7 font-bold text-sm truncate pr-2 flex items-center gap-2">
                         {task.title}
                         {task.status === 'active' && <span className="text-[9px] bg-green-500 text-black px-1 animate-pulse">RUNNING</span>}
                       </div>
 
-                      {/* Operations */}
                       <div className="col-span-2 text-right flex justify-end gap-2">
-                        {/* 两段式删除按钮 */}
                         <button
                           onClick={(e) => handleDeleteClick(task.id, e)}
                           className={`transition-all duration-200 p-1 flex items-center ${isConfirming ? 'bg-red-900/30 text-red-500 border border-red-800 rounded px-2 w-auto' : 'text-green-700 hover:text-red-500'}`}
@@ -667,7 +652,6 @@ export default function SpineGuardCLI() {
                   </button>
                 </div>
 
-                {/* Dashboard Delete Button */}
                 <div className="absolute top-2 right-2">
                   <button
                     onClick={(e) => handleDeleteClick(activeTask.id, e)}
@@ -678,6 +662,56 @@ export default function SpineGuardCLI() {
                   </button>
                 </div>
               </div>
+
+              {/* Time Config (Only when paused) */}
+              {!isRunning && timeLeft === timerDuration && (
+                <div className="flex justify-center items-center gap-2 border-t border-green-900/30 p-2 bg-green-900/5 flex-wrap">
+                  {FOCUS_TIME_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setTimerDuration(opt.value);
+                        setTimeLeft(opt.value);
+                        if (soundEnabled) playSound();
+                      }}
+                      className={`text-[10px] px-3 py-1 border border-transparent ${timerDuration === opt.value ? 'bg-green-900 text-green-300 border-green-800' : 'text-green-900 hover:text-green-600 hover:border-green-900'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+
+                  {/* Custom Input */}
+                  <div className="flex items-center gap-1 border-l border-green-900/30 pl-2 ml-1">
+                    <span className="text-[10px] text-green-900">CUSTOM:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="180"
+                      placeholder="MIN"
+                      className="w-12 bg-black border border-green-900 text-[10px] text-green-500 text-center focus:border-green-500 focus:outline-none py-1 placeholder-green-900"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = parseInt(e.currentTarget.value);
+                          if (!isNaN(val) && val > 0) {
+                            setTimerDuration(val * 60);
+                            setTimeLeft(val * 60);
+                            if (soundEnabled) playSound('click');
+                            e.currentTarget.blur();
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val) && val > 0) {
+                          setTimerDuration(val * 60);
+                          setTimeLeft(val * 60);
+                          if (soundEnabled) playSound('click');
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
