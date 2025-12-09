@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 你的极客黑背景 */
+body {
+  background-color: #000;
+}
